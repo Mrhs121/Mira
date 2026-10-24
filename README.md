@@ -5,108 +5,158 @@
 <h1 align="center">Mira</h1>
 
 <p align="center">
-  <strong>打开文件夹，按方向键，一口气看完。</strong><br/>
-  面向 macOS 的原生轻量文件夹图片浏览器 —— 不导入、不建库、80MB 大图秒开、滚轮丝滑缩放。
+  <strong>打开文件夹，按方向键，把图一口气看完。</strong>
 </p>
 
-![Mira 预览界面](native-view.png)
+<p align="center">
+  <a href="https://github.com/Mrhs121/Mira/actions/workflows/build.yml"><img src="https://github.com/Mrhs121/Mira/actions/workflows/build.yml/badge.svg" alt="Build status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B%20arm64-black" alt="macOS 14+ arm64" />
+</p>
 
----
+![Mira 浏览界面](native-view.png)
 
-## 核心特性
+Mira 是一个 macOS 原生图片浏览器，做的是件很小的事：打开一个文件夹，按方向键，把里面的图一口气看完。
 
-- **文件夹即图库**：打开任意一张图片或文件夹，自动串起同目录图片序列；不导入、不建数据库、不上传云端。
-- **大图瞬时响应**：针对 70–80MB 高像素 JPEG / PNG 优化，采用「首帧骨架占位 → 后台适应尺寸解码 → 放大按需加载 6144px 细节 → 相邻图片预取」流水线。
-- **顺手看图与手势**：
-  - `←` / `→` / `Space` 连续翻页，`G` 一键切换网格与大图查看态
-  - **鼠标上下滚动 / 触控板捏合**：以鼠标指针为锚点丝滑放大、缩小
-  - **图片内单击拖拽**：自由平移画面；双击在「适应窗口」与「100% 实际像素」间切换
-- **原生级轻量标注**：内置参考 macOS「预览」设计的顶部标注工具栏，支持矩形、椭圆、直线、内联文字、裁切、旋转、6 档线宽与色板 / HEX 取色，支持 `⌘C` 直接复制合成图粘贴至聊天软件，或另存为 PNG 副本（绝不覆盖原图）。
-- **随手整理**：查看 EXIF / 色彩 / 尺寸信息面板（`I`）、重命名、移到废纸篓并支持 `⌘Z` 撤销恢复、在 Finder 中显示、系统分享。
+没有导入，没有图库，没有云同步。图片就在磁盘上，Mira 只负责把它们顺顺当当地显示出来。大图不会等整张解码完才出现——先给个骨架，后台补细节，需要放大时再取 6144px 纹理，顺便把前后几张也准备好。滚轮或触控板捏合以指针为中心缩放，按住图片可以平移，手感接近看 PDF。
 
----
+标注功能是照着 macOS「预览」做的：顶部工具栏，矩形、椭圆、直线、文字、裁切、旋转，颜色和 6 档线宽改完立刻生效。文字直接点在图上输入，不用先弹对话框。做好后可以 `⌘C` 复制合成图，或者另存一张 PNG 副本，原图不会被动。
 
-## 快速开始
+目前只支持 Apple Silicon 和 macOS 14 及以上。
 
-### 环境要求
+## 功能
 
-- **系统**：macOS 14.0+（Apple Silicon）
-- **工具链**：Xcode Command Line Tools（Swift 5.9+）
+### 看图
 
-### 源码构建与运行
+- 打开图片会自动串起同目录的图片，`←` / `→` / `Space` 连续翻页。
+- `G` 在网格和大图之间切换；`F` 全屏；`S` 幻灯片。
+- 滚轮上下缩放，触控板捏合也可以；缩放以鼠标指针为锚点。
+- 图片内单击拖拽平移；双击在「适应窗口」和「100% 实际像素」之间切换。
+- `I` 打开右侧信息面板，查看 EXIF、色彩空间和尺寸。
+
+### 标注
+
+按 `⌘E` 打开编辑面板。工具都在顶部：矩形、椭圆、直线、文字、裁切、旋转。画完可以继续选中拖动、改颜色、改线宽，也可以按 `Delete` 删掉。
+
+- 文字：选文字工具后点空白处直接输入；点已有形状只会选中，不会误开文字框。
+- 线宽：6 档下拉选择，菜单里用按真实比例画出的横线表示粗细。
+- 颜色：内置色板和 HEX 输入，不调用系统取色器。
+- 裁切：拖出裁切框后应用；原图仍不动。
+- 输出：`⌘C` 复制当前合成图，或保存为 PNG 副本。
+
+### 整理
+
+重命名、移到废纸篓、`⌘Z` 撤销删除、在 Finder 中显示、系统分享，这些都在右键菜单里。
+
+## 性能
+
+测试环境是 Apple M1 Max / 32GB / macOS 27.2，样本为 80MB 左右的高像素图片：
+
+| 样本 | 分辨率 | 阶段 | 耗时 |
+| :--- | :--- | :--- | :--- |
+| 80MB PNG | 7000 × 5000 | 适应窗口解码 | 471–598 ms |
+| 80MB PNG | 7000 × 5000 | 6144px 细节 | 571 ms |
+| 80MB JPEG | 10000 × 7500 | 适应窗口解码 | 741 ms |
+| 相邻大图翻页 | 连续翻页 | 预取命中 | 0 ms（仅缓存命中时） |
+
+首帧会先出骨架，所以上面是「完整画面可用」的时间，不是白屏时间。翻页的 0 ms 也只发生在预取已经完成的情况下。
+
+## 安装
+
+### 直接下载
+
+从 [Releases](https://github.com/Mrhs121/Mira/releases/latest) 下载 `Mira-macos-arm64.zip` 或 `.dmg`，解压后把 `Mira.app` 拖进「应用程序」。
+
+这个版本是 ad-hoc 签名，没有做 Apple 公证。如果系统提示“无法验证开发者”，先右键 `Mira.app` → 打开；如果还是被拦，可以执行：
 
 ```bash
-git clone git@github.com:Mrhs121/Mira.git
+xattr -dr com.apple.quarantine /Applications/Mira.app
+```
+
+只对你信任的来源这样做。
+
+### 从源码构建
+
+需要 macOS 14+、Apple Silicon，以及带 Swift 5.9 的 Xcode Command Line Tools。
+
+```bash
+git clone https://github.com/Mrhs121/Mira.git
 cd Mira/app
 ./build.sh
 open build/Mira.app
 ```
 
-也可以直接下载预构建包解压运行：[Mira-0.1.0-arm64.zip](Mira-0.1.0-arm64.zip)，或安装到 `/Applications`：
+装进 `/Applications`：
 
 ```bash
-cp -R app/build/Mira.app /Applications/Mira.app
+rm -rf /Applications/Mira.app
+ditto build/Mira.app /Applications/Mira.app
 ```
 
-支持通过命令行直接打开指定图片或文件夹：
+也可以从命令行直接打开某个目录或图片：
 
 ```bash
-./app/build/Mira.app/Contents/MacOS/Mira /path/to/photos
+./build/Mira.app/Contents/MacOS/Mira ~/Pictures
 ```
 
----
-
-## 常用快捷键
+## 快捷键
 
 | 按键 / 操作 | 功能 |
 | :--- | :--- |
 | `⌘O` | 打开图片或文件夹 |
 | `←` / `→` / `Space` | 上一张 / 下一张 |
-| `鼠标滚轮上下` | 以指针为中心放大 / 缩小图片 |
-| `画布内单击拖拽` | 平移移动图片 |
-| `双击图片` / `Z` | 切换「适应窗口」与「100% 实际像素」 |
+| 滚轮上下 | 以指针为中心放大 / 缩小 |
+| 画布内单击拖拽 | 平移图片 |
+| 双击图片 / `Z` | 适应窗口 / 100% 实际像素 |
 | `1` | 100% 实际像素 |
-| `G` | 切换「网格浏览」与「大图查看」 |
-| `I` | 显示 / 隐藏右侧信息面板 |
-| `⌘E` | 打开图片标注与裁切编辑器 |
-| `⌘C` | 复制当前图片（编辑态下复制带标注合成图） |
+| `G` | 网格浏览 / 大图查看 |
+| `I` | 显示 / 隐藏信息面板 |
+| `⌘E` | 打开标注与裁切编辑器 |
+| `⌘C` | 复制当前图片（编辑态下复制合成图） |
 | `Delete` / `⌘Z` | 移到废纸篓 / 撤销删除 |
-| `F` / `S` | 全屏 / 幻灯片播放 |
+| `F` / `S` | 全屏 / 幻灯片 |
 
----
+编辑态下 `Delete` 删除选中标注；查看态下 `Delete` 才会把文件移到废纸篓。
 
-## 性能实测（80MB 大图）
-
-测试环境：Apple M1 Max / 32GB / macOS
-
-| 测试样本 | 分辨率 | 阶段 | 耗时 |
-| :--- | :--- | :--- | :--- |
-| 80MB PNG | 7000 × 5000 (35MP) | Fit 窗口解码 | **471–598 ms** |
-| 80MB PNG | 7000 × 5000 (35MP) | 6144px 细节纹理 | **571 ms** |
-| 80MB JPEG | 10000 × 7500 (75MP) | Fit 窗口解码 | **741 ms** |
-| 相邻大图翻页 | 连续翻页 | 后台预取命中 | **0 ms（缓存直接命中）** |
-
----
-
-## 目录结构
+## 目录
 
 ```text
 Mira/
+├── README.md
+├── LICENSE
 ├── app/
-│   ├── Package.swift          # SwiftPM 工程配置
-│   ├── build.sh               # Release 编译与 .app 打包脚本
+│   ├── README.md              # 更细的开发与使用说明
+│   ├── Package.swift
+│   ├── build.sh
 │   ├── Sources/
-│   │   ├── MiraCore/          # 解码管线、目录扫描、图像元数据与预取缓存
-│   │   ├── MiraApp/           # 原生 AppKit 界面、画布手势、网格与标注编辑器
-│   │   └── MiraBench/         # 命令行大图解码基准测试工具
-│   └── Resources/             # Info.plist 与应用图标资源
-├── prototype/                 # 早期交互原型与示例图片资源
-├── PRODUCT_DESIGN.md          # 产品设计文档
-└── PERF_80MB.md               # 80MB 大图性能设计与实测规范
+│   │   ├── MiraCore/          # 解码、目录扫描、元数据、预取缓存
+│   │   ├── MiraApp/           # AppKit 界面、画布、网格、标注编辑器
+│   │   └── MiraBench/         # 大图解码基准
+│   └── Resources/             # Info.plist、图标
+├── prototype/                 # 早期交互原型和示例图
+├── PRODUCT_DESIGN.md
+└── PERF_80MB.md
 ```
 
----
+## 已知限制
+
+- 只支持 Apple Silicon（arm64），不支持 Intel Mac。
+- 标注文字目前是单行；还没有撤销 / 重做、图层和蒙版。
+- 编辑器会把工作图的长边压到 8192px 以内，超大图保存出来的也是工作图尺寸。
+- 裁切需要先应用，再保存或复制。
+- 下载版是 ad-hoc 签名，未公证；首次打开可能需要按上面的步骤放行。
+
+## 开发
+
+```bash
+cd app
+./build.sh
+```
+
+涉及 UI 的改动，建议顺手跑一下构建并附一张前后对比图。更细的模块说明在 [app/README.md](app/README.md)。
+
+欢迎提 issue 和 PR；如果是比较大的改动，先开 issue 聊一下方向，避免白做。
 
 ## License
 
-MIT License
+[MIT](LICENSE)

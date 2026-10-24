@@ -12,3 +12,7 @@ xcuserdata/
 # Large Synthetic Benchmark Images (80MB+)
 app/testdata/*.jpg
 app/testdata/*.png
+
+# Release artifacts
+Mira-*.zip
+Mira-*.dmg
