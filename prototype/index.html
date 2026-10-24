@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mira — 为 Mac 而生的图片浏览器</title>
+<style>
+  :root{
+    --text:#f5f5f7;
+    --muted:#a1a1a6;
+    --faint:#6e6e73;
+    --line:rgba(255,255,255,.085);
+    --line-strong:rgba(255,255,255,.14);
+    --accent:#0a84ff;
+    --accent-soft:rgba(10,132,255,.16);
+    --canvas:#0c0c0e;
+    --panel:rgba(28,28,30,.94);
+    --green:#30d158;
+    --window-radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    overflow:hidden;
+    background:#08090d;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Arial,"PingFang SC","Hiragino Sans GB",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    user-select:none;
+  }
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:default}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  img{display:block}
+  .hidden{display:none!important}
+
+  /* ---------- desktop ---------- */
+  .desktop{
+    position:relative;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:56px 36px 28px;
+    background:
+      radial-gradient(ellipse 55% 52% at 16% 9%, rgba(48,82,154,.58), transparent 63%),
+      radial-gradient(ellipse 46% 56% at 88% 17%, rgba(125,67,75,.38), transparent 64%),
+      radial-gradient(ellipse 52% 48% at 64% 100%, rgba(30,103,99,.34), transparent 64%),
+      linear-gradient(138deg,#07080c 0%,#101322 45%,#090b10 100%);
+  }
+  .desktop::before{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,.055), transparent 24%),
+      radial-gradient(circle at 78% 72%, rgba(255,255,255,.04), transparent 22%);
+    mix-blend-mode:screen;
+  }
+  .desktop::after{
+    content:"";
+    position:absolute;inset:0;
+    pointer-events:none;
+    opacity:.16;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+    mix-blend-mode:soft-light;
+  }
+
+  /* ---------- menu bar ---------- */
+  .menubar{
+    position:fixed;z-index:60;top:0;left:0;right:0;height:28px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 18px;
+    background:rgba(8,9,12,.52);
+    border-bottom:1px solid rgba(255,255,255,.055);
+    backdrop-filter:blur(24px) saturate(150%);
+    -webkit-backdrop-filter:blur(24px) saturate(150%);
+    font-size:12.5px;
+    color:rgba(255,255,255,.88);
+  }
+  .menubar-left,.menubar-right{display:flex;align-items:center;gap:19px;white-space:nowrap}
+  .apple{font-size:15px;line-height:1;opacity:.92;transform:translateY(-.5px)}
+  .app-mark{
+    width:13px;height:13px;border-radius:4px;
+    background:linear-gradient(145deg,#ffb36b 0%,#ff6b5a 45%,#7a4dff 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+    display:inline-block;
+    position:relative;
+  }
+  .app-mark::after{
+    content:"";position:absolute;inset:3.5px;
+    border:1px solid rgba(255,255,255,.92);border-radius:1.5px;
+  }
+  .brand{font-weight:600;letter-spacing:.01em}
+  .menubar-right{color:rgba(255,255,255,.78);gap:16px}
+  .mb-wifi{display:flex;align-items:center;gap:5px}
+  .mb-battery{
+    width:22px;height:10px;border:1px solid rgba(255,255,255,.55);border-radius:3px;
+    position:relative;display:inline-block;
+  }
+  .mb-battery::before{
+    content:"";position:absolute;left:2px;top:2px;bottom:2px;width:15px;
+    background:rgba(255,255,255,.86);border-radius:1px;
+  }
+  .mb-battery::after{
+    content:"";position:absolute;right:-3.5px;top:3px;width:2px;height:4px;
+    background:rgba(255,255,255,.55);border-radius:0 1px 1px 0;
+  }
+  .mb-icon{opacity:.8;font-size:12px}
+
+  /* ---------- window ---------- */
+  .window{
+    position:relative;z-index:10;
+    width:min(1280px, calc(100vw - 72px));
+    height:min(810px, calc(100vh - 92px));
+    display:flex;flex-direction:column;
+    overflow:hidden;
+    border-radius:var(--window-radius);
+    background:linear-gradient(180deg, rgba(39,39,43,.94), rgba(25,25,28,.96));
+    border:1px solid rgba(255,255,255,.15);
+    box-shadow:
+      0 46px 120px rgba(0,0,0,.62),
+      0 12px 34px rgba(0,0,0,.44),
+      inset 0 1px 0 rgba(255,255,255,.09);
+    backdrop-filter:blur(38px) saturate(150%);
+    -webkit-backdrop-filter:blur(38px) saturate(150%);
+  }
+  .window.focus{
+    position:fixed;inset:0;z-index:80;
+    width:100vw;height:100vh;border-radius:0;border:0;
+  }
+  .window.focus .titlebar,
+  .window.focus .filmstrip,
+  .window.focus .statusbar,
+  .window.focus .inspector{display:none!important}
+  .window.focus .canvas{padding:0}
+  .window.focus .canvas img{max-width:100vw!important;max-height:100vh!important;border-radius:0;box-shadow:none}
+  .focus-exit{
+    position:fixed;z-index:90;top:16px;right:18px;
+    padding:7px 11px;border-radius:8px;
+    background:rgba(28,28,30,.7);border:1px solid rgba(255,255,255,.16);
+    backdrop-filter:blur(18px);
+    font-size:12px;color:rgba(255,255,255,.82);
+    opacity:0;transition:opacity .18s ease;
+  }
+  .window.focus:hover .focus-exit,.focus-exit:focus{opacity:1}
+
+  /* ---------- titlebar ---------- */
+  .titlebar{
+    height:54px;flex:0 0 54px;
+    display:grid;grid-template-columns:minmax(250px,1fr) auto minmax(295px,1fr);
+    align-items:center;gap:12px;
+    padding:0 16px;
+    background:rgba(255,255,255,.032);
+    border-bottom:1px solid var(--line);
+    position:relative;
+  }
+  .traffic{display:flex;align-items:center;gap:8px;margin-right:14px}
+  .light{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.22)}
+  .light.red{background:#ff5f57}
+  .light.yellow{background:#febc2e}
+  .light.green{background:#28c840}
+  .toolbar-left{display:flex;align-items:center;gap:4px;min-width:0;justify-self:start}
+  .toolbar-right{display:flex;align-items:center;gap:5px;justify-self:end}
+  .icon-btn{
+    width:30px;height:30px;border-radius:7px;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:rgba(255,255,255,.72);
+    transition:background .14s ease,color .14s ease;
+    flex:0 0 auto;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,.075);color:#fff}
+  .icon-btn.active{background:rgba(255,255,255,.1);color:#fff}
+  .icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+  .toolbar-divider{width:1px;height:18px;background:var(--line);margin:0 7px}
+  .title-block{text-align:center;min-width:0;line-height:1.25}
+  .crumb{
+    font-size:10.5px;color:var(--faint);
+    letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:2px;
+  }
+  .crumb .slash{margin:0 5px;color:rgba(255,255,255,.24)}
+  .doc-title{display:flex;align-items:baseline;justify-content:center;gap:9px;white-space:nowrap;overflow:hidden}
+  .doc-title .name{font-size:13.5px;font-weight:600;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis}
+  .doc-title .count{font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .zoom-btn{
+    height:30px;padding:0 9px;border-radius:7px;
+    display:flex;align-items:center;gap:5px;
+    font-size:11.5px;color:rgba(255,255,255,.7);
+    transition:background .14s ease,color .14s ease;
+  }
+  .zoom-btn:hover{background:rgba(255,255,255,.075);color:#fff}
+  .zoom-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.65}
+
+  /* ---------- body ---------- */
+  .main{flex:1;display:flex;min-height:0;min-width:0}
+  .content{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+
+  /* ---------- canvas / view ---------- */
+  .view{flex:1;display:flex;min-height:0}
+  .canvas{
+    position:relative;flex:1;min-width:0;min-height:0;
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    padding:30px 34px 26px;
+    background:
+      radial-gradient(ellipse 70% 62% at 50% 46%, #17171a 0%, #0e0e10 58%, #0a0a0c 100%);
+  }
+  .canvas::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 90px rgba(0,0,0,.22);
+  }
+  .photo-transform{
+    display:flex;align-items:center;justify-content:center;
+    transform:translate(0,0) scale(1);
+    transition:transform .18s cubic-bezier(.2,.75,.3,1);
+    will-change:transform;
+    width:100%;height:100%;
+  }
+  .photo-transform.dragging{transition:none}
+  .photo-transform img{
+    max-width:100%;
+    max-height:100%;
+    width:auto;height:auto;
+    border-radius:2px;
+    box-shadow:0 28px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.075);
+    background:#151517;
+    -webkit-user-drag:none;
+  }
+  .window.focus .photo-transform img{max-width:100vw!important;max-height:100vh!important}
+  .zoom-badge{
+    position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
+    padding:4px 9px;border-radius:6px;
+    background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);
+    color:rgba(255,255,255,.68);font-size:10.5px;font-variant-numeric:tabular-nums;
+    backdrop-filter:blur(10px);
+    opacity:0;transition:opacity .16s ease;pointer-events:none;
+  }
+  .zoom-badge.show{opacity:1}
+
+  /* ---------- filmstrip ---------- */
+  .filmstrip{
+    flex:0 0 92px;height:92px;
+    display:flex;align-items:center;gap:9px;
+    padding:0 18px;
+    border-top:1px solid var(--line);
+    background:rgba(20,20,22,.8);
+    overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:none;
+  }
+  .filmstrip::-webkit-scrollbar{display:none}
+  .thumb{
+    flex:0 0 auto;width:64px;height:48px;border-radius:5px;
+    overflow:hidden;position:relative;
+    opacity:.66;
+    background:#2a2a2d;
+    box-shadow:0 0 0 1px rgba(255,255,255,.07);
+    transition:opacity .14s ease,transform .14s ease,box-shadow .14s ease;
+  }
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb:hover{opacity:.94;transform:translateY(-1px)}
+  .thumb.active{
+    opacity:1;
+    box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(0,0,0,.6),0 6px 16px rgba(0,0,0,.4);
+    transform:translateY(-1px);
+  }
+  .thumb.active::after{
+    content:"";position:absolute;inset:0;border-radius:5px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+  }
+  .thumb-index{
+    position:absolute;right:3px;bottom:3px;
+    padding:1px 4px;border-radius:3px;
+    background:rgba(0,0,0,.58);color:rgba(255,255,255,.8);
+    font-size:8.5px;font-variant-numeric:tabular-nums;
+    opacity:0;transition:opacity .14s ease;
+  }
+  .thumb.active .thumb-index,.thumb:hover .thumb-index{opacity:1}
+
+  /* ---------- inspector ---------- */
+  .inspector{
+    flex:0 0 300px;width:300px;min-width:0;
+    background:rgba(25,25,27,.9);
+    border-left:1px solid var(--line);
+    display:flex;flex-direction:column;
+    min-height:0;
+  }
+  .inspector-head{
+    height:44px;flex:0 0 44px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 14px 0 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .inspector-head .title{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .inspector-head .close{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--faint)}
+  .inspector-head .close:hover{background:rgba(255,255,255,.07);color:#fff}
+  .inspector-head svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+  .inspector-body{flex:1;overflow-y:auto;padding:4px 18px 18px}
+  .inspector-body::-webkit-scrollbar{width:8px}
+  .inspector-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  .section{padding:14px 0 12px;border-bottom:1px solid var(--line)}
+  .section:last-of-type{border-bottom:0}
+  .section-title{
+    font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 9px;
+  }
+  .row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:0 0 6px;line-height:1.45}
+  .row:last-child{margin-bottom:0}
+  .row .label{font-size:10.5px;color:var(--faint);flex:0 0 auto;white-space:nowrap}
+  .row .value{font-size:10.5px;color:rgba(255,255,255,.78);text-align:right;min-width:0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+  .row .value.strong{color:rgba(255,255,255,.93);font-weight:500}
+  .chip-row{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+  .chip{
+    height:19px;padding:0 7px;border-radius:5px;
+    display:inline-flex;align-items:center;
+    background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.07);
+    color:rgba(255,255,255,.62);font-size:9.5px;font-weight:500;
+  }
+  .map{
+    height:84px;border-radius:7px;margin:2px 0 9px;
+    position:relative;overflow:hidden;
+    background:
+      linear-gradient(24deg, transparent 46%, rgba(255,255,255,.09) 47%, rgba(255,255,255,.09) 48%, transparent 49%),
+      linear-gradient(108deg, transparent 52%, rgba(255,255,255,.07) 53%, rgba(255,255,255,.07) 54%, transparent 55%),
+      linear-gradient(0deg, rgba(255,255,255,.045) 1px, transparent 1px) 0 0/100% 17px,
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px) 0 0/17px 100%,
+      #1b211f;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .map::before{
+    content:"";position:absolute;left:-20%;top:48%;width:150%;height:9px;
+    background:#26312e;transform:rotate(-12deg);
+    box-shadow:0 -14px 0 rgba(36,55,50,.65),0 13px 0 rgba(36,55,50,.5);
+  }
+  .pin{
+    position:absolute;left:56%;top:44%;width:10px;height:10px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 4px rgba(10,132,255,.22),0 0 0 9px rgba(10,132,255,.09);
+  }
+  .map-link{font-size:10px;color:#64a8ff;text-decoration:none;display:inline-flex;align-items:center;gap:3px}
+  .map-link:hover{text-decoration:underline}
+  .actions{display:flex;flex-direction:column;gap:6px;padding-top:13px}
+  .action-btn{
+    height:29px;border-radius:6px;
+    display:flex;align-items:center;gap:7px;padding:0 9px;
+    font-size:10.5px;color:rgba(255,255,255,.72);
+    background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.065);
+    transition:background .14s ease,color .14s ease;
+  }
+  .action-btn:hover{background:rgba(255,255,255,.085);color:#fff}
+  .action-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+  .action-btn.danger:hover{background:rgba(255,69,58,.14);border-color:rgba(255,69,58,.2);color:#ff8a82}
+
+  /* ---------- grid ---------- */
+  .grid-view{flex:1;display:flex;flex-direction:column;min-height:0;background:#121214}
+  .grid-head{
+    flex:0 0 54px;height:54px;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;
+    padding:0 22px;
+    border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.018);
+  }
+  .grid-title-wrap{min-width:0;display:flex;align-items:baseline;gap:10px}
+  .grid-title{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grid-count{font-size:10.5px;color:var(--faint);white-space:nowrap}
+  .grid-controls{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .search-field{
+    height:27px;width:176px;border-radius:6px;
+    display:flex;align-items:center;gap:6px;padding:0 8px;
+    background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.075);
+    color:var(--faint);
+  }
+  .search-field svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;flex:0 0 auto}
+  .search-field input{
+    width:100%;background:none;border:0;outline:0;color:rgba(255,255,255,.82);
+    font-size:10.5px;font-family:inherit;padding:0;
+  }
+  .search-field input::placeholder{color:rgba(255,255,255,.3)}
+  .sort-btn{
+    height:27px;padding:0 8px;border-radius:6px;
+    display:flex;align-items:center;gap:5px;
+    font-size:10.5px;color:rgba(255,255,255,.62);
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+  }
+  .sort-btn:hover{background:rgba(255,255,255,.075);color:#fff}
+  .sort-btn svg{width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+  .grid{
+    flex:1;min-height:0;overflow-y:auto;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(218px,1fr));
+    align-content:start;
+    gap:16px;
+    padding:16px 22px 14px;
+  }
+  .grid::-webkit-scrollbar{width:9px}
+  .grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  .card{
+    min-width:0;position:relative;border-radius:7px;
+    outline:2px solid transparent;outline-offset:2px;
+    transition:outline-color .12s ease,transform .16s ease;
+  }
+  .card:hover{transform:translateY(-1px)}
+  .card.selected{outline-color:var(--accent)}
+  .card-img{
+    width:100%;aspect-ratio:4/3;border-radius:6px;overflow:hidden;
+    background:#202023;position:relative;
+    box-shadow:0 0 0 1px rgba(255,255,255,.065);
+  }
+  .card-img img{width:100%;height:100%;object-fit:cover;transition:transform .28s cubic-bezier(.2,.7,.3,1)}
+  .card:hover .card-img img{transform:scale(1.018)}
+  .card-img::after{
+    content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.2));
+    opacity:0;transition:opacity .16s ease;
+  }
+  .card:hover .card-img::after{opacity:1}
+  .select-dot{
+    position:absolute;left:8px;top:8px;width:18px;height:18px;border-radius:50%;
+    border:1.5px solid rgba(255,255,255,.7);
+    background:rgba(0,0,0,.18);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .14s ease;
+  }
+  .card:hover .select-dot,.card.selected .select-dot{opacity:1}
+  .card.selected .select-dot{background:var(--accent);border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .select-dot svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+  .card.selected .select-dot svg{opacity:1}
+  .card-meta{display:flex;align-items:baseline;justify-content:space-between;gap:9px;padding:7px 1px 0;line-height:1.2}
+  .card-name{font-size:10.5px;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .card-size{font-size:9.5px;color:var(--faint);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .card-overlay-title{
+    position:absolute;left:9px;right:9px;bottom:8px;
+    font-size:10.5px;font-weight:500;color:#fff;
+    text-shadow:0 1px 4px rgba(0,0,0,.65);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    opacity:0;transform:translateY(2px);
+    transition:opacity .16s ease,transform .16s ease;
+    pointer-events:none;
+  }
+  .card:hover .card-overlay-title,.card.selected .card-overlay-title{opacity:1;transform:translateY(0)}
+  .empty-grid{
+    grid-column:1/-1;height:100%;min-height:260px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:var(--faint);font-size:12px;gap:7px;
+  }
+  .empty-grid strong{color:rgba(255,255,255,.75);font-size:13px;font-weight:500}
+
+  /* ---------- status bar ---------- */
+  .statusbar{
+    flex:0 0 29px;height:29px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 14px 0 18px;
+    border-top:1px solid var(--line);
+    background:rgba(22,22,24,.9);
+    color:var(--faint);font-size:9.5px;
+    font-variant-numeric:tabular-nums;
+  }
+  .status-left,.status-right{display:flex;align-items:center;gap:12px;min-width:0;white-space:nowrap}
+  .local{display:inline-flex;align-items:center;gap:5px;color:rgba(255,255,255,.34)}
+  .local svg{width:9px;height:9px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .help-btn{
+    width:17px;height:17px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.44);
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:600;line-height:1;
+  }
+  .help-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;z-index:100;left:50%;bottom:62px;transform:translate(-50%,10px);
+    display:flex;align-items:center;gap:14px;
+    padding:9px 14px;border-radius:9px;
+    background:rgba(38,38,42,.92);border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 14px 40px rgba(0,0,0,.45);
+    backdrop-filter:blur(20px) saturate(150%);
+    color:rgba(255,255,255,.86);font-size:11.5px;
+    opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+  .toast button{color:#64a8ff;font-size:11.5px}
+  .toast button:hover{text-decoration:underline}
+
+  /* ---------- shortcut sheet ---------- */
+  .overlay{
+    position:fixed;z-index:120;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.5);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+  }
+  .sheet{
+    width:min(690px,calc(100vw - 60px));
+    border-radius:13px;overflow:hidden;
+    background:linear-gradient(180deg,rgba(42,42,46,.98),rgba(28,28,31,.98));
+    border:1px solid rgba(255,255,255,.16);
+    box-shadow:0 40px 110px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.09);
+    padding:20px 22px 18px;
+  }
+  .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+  .sheet-title{font-size:15px;font-weight:600}
+  .sheet-sub{font-size:10.5px;color:var(--faint);margin-top:3px}
+  .sheet-close{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--faint)}
+  .sheet-close:hover{background:rgba(255,255,255,.08);color:#fff}
+  .sheet-close svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+  .shortcut-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+  .shortcut-group{margin-bottom:14px}
+  .shortcut-group h4{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:0 0 7px;font-weight:600}
+  .shortcut-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3.5px 0;font-size:11px;color:rgba(255,255,255,.7)}
+  .keys{display:flex;gap:3px;flex:0 0 auto}
+  kbd{
+    min-width:18px;height:19px;padding:0 5px;border-radius:4px;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 1px 0 rgba(0,0,0,.3);
+    font-family:inherit;font-size:10px;color:rgba(255,255,255,.8);
+  }
+  .sheet-foot{margin-top:2px;padding-top:12px;border-top:1px solid var(--line);font-size:10px;color:var(--faint);display:flex;justify-content:space-between}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1080px){
+    .inspector{flex-basis:270px;width:270px}
+    .titlebar{grid-template-columns:minmax(210px,1fr) auto minmax(250px,1fr)}
+    .photo-transform img{max-width:calc(100vw - 400px)}
+  }
+  @media (max-width:900px){
+    .inspector{display:none}
+    .titlebar{grid-template-columns:1fr auto}
+    .title-block{display:none}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.2"/><rect x="14" y="4" width="6" height="6" rx="1.2"/><rect x="4" y="14" width="6" height="6" rx="1.2"/><rect x="14" y="14" width="6" height="6" rx="1.2"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l1.7 2H18.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="5.6"/><path d="m15.2 15.2 4 4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.3"/><path d="M12 11v5.2"/><path d="M12 7.9h.01"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15.5V4.5"/><path d="m8.5 8 3.5-3.5L15.5 8"/><path d="M6 12.5v5.2a1.8 1.8 0 0 0 1.8 1.8h8.4a1.8 1.8 0 0 0 1.8-1.8v-5.2"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.15" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 9.5 5 5 5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.4 4.4L19 7.5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5.5" y="10.5" width="13" height="9" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 5h5v5"/><path d="m19 5-7.5 7.5"/><path d="M18 14v4.2a1.8 1.8 0 0 1-1.8 1.8H6.8A1.8 1.8 0 0 1 5 18.2V8.8A1.8 1.8 0 0 1 6.8 7H11"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="10" height="11" rx="2"/><path d="M15.5 8.5V6.8A1.8 1.8 0 0 0 13.7 5H6.8A1.8 1.8 0 0 0 5 6.8v7.9a1.8 1.8 0 0 0 1.8 1.8h1.7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6.5 7l.8 12a1.8 1.8 0 0 0 1.8 1.7h5.8a1.8 1.8 0 0 0 1.8-1.7l.8-12"/><path d="M10 11v6M14 11v6"/></symbol>
+</svg>
+
+<div class="desktop" id="desktop">
+  <div class="menubar">
+    <div class="menubar-left">
+      <span class="apple">&#xF8FF;</span>
+      <span class="brand">Mira</span>
+      <span>文件</span>
+      <span>编辑</span>
+      <span>显示</span>
+      <span>图像</span>
+      <span>窗口</span>
+      <span>帮助</span>
+    </div>
+    <div class="menubar-right">
+      <span class="mb-wifi">
+        <svg width="14" height="11" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 6.2a15 15 0 0 1 20 0"/><path d="M5.4 9.7a10.2 10.2 0 0 1 13.2 0"/><path d="M8.8 13.2a5.2 5.2 0 0 1 6.4 0"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
+      </span>
+      <span class="mb-battery"></span>
+      <span class="mb-icon">⌘</span>
+      <span>10:24</span>
+    </div>
+  </div>
+
+  <main class="window" id="app" aria-label="Mira 图片浏览器">
+    <header class="titlebar">
+      <div class="toolbar-left">
+        <div class="traffic" aria-hidden="true"><span class="light red"></span><span class="light yellow"></span><span class="light green"></span></div>
+        <button class="icon-btn active" id="gridBtn" aria-label="网格视图" title="网格视图 (G)">
+          <svg><use href="#i-grid"/></svg>
+        </button>
+        <button class="icon-btn" id="openBtn" aria-label="打开文件夹" title="打开文件夹 (⌘O)">
+          <svg><use href="#i-folder"/></svg>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button class="icon-btn" id="backBtn" aria-label="后退" title="后退 (⌘[)">
+          <svg><use href="#i-left"/></svg>
+        </button>
+        <button class="icon-btn" id="forwardBtn" aria-label="前进" title="前进 (⌘])">
+          <svg><use href="#i-right"/></svg>
+        </button>
+      </div>
+
+      <div class="title-block">
+        <div class="crumb" id="crumb">照片<span class="slash">/</span>2026 日本 · 秋</div>
+        <div class="doc-title">
+          <span class="name" id="docName">IMG_4821.HEIC</span>
+          <span class="count" id="docCount">第 1 张，共 12 张</span>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button class="icon-btn" id="searchBtn" aria-label="筛选当前文件夹" title="筛选当前文件夹 (⌘F)">
+          <svg><use href="#i-search"/></svg>
+        </button>
+        <button class="zoom-btn" id="zoomBtn" title="切换缩放 (Z)">
+          <span id="zoomLabel">适合窗口</span>
+          <svg><use href="#i-chevron"/></svg>
+        </button>
+        <button class="icon-btn active" id="inspectorBtn" aria-label="显示信息" title="显示信息 (I)">
+          <svg><use href="#i-info"/></svg>
+        </button>
+        <button class="icon-btn" id="shareBtn" aria-label="分享" title="分享">
+          <svg><use href="#i-share"/></svg>
+        </button>
+        <button class="icon-btn" id="moreBtn" aria-label="更多" title="更多">
+          <svg><use href="#i-more"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="main">
+      <section class="content">
+        <div class="view" id="viewMode">
+          <div class="canvas" id="canvas">
+            <div class="photo-transform" id="photoTransform">
+              <img id="heroImage" src="assets/kyoto-street.jpg" alt="京都二年坂的清晨">
+            </div>
+            <div class="zoom-badge" id="zoomBadge">100%</div>
+          </div>
+        </div>
+
+        <div class="grid-view hidden" id="gridMode">
+          <div class="grid-head">
+            <div class="grid-title-wrap">
+              <div class="grid-title" id="gridTitle">2026 日本 · 秋</div>
+              <div class="grid-count" id="gridCount">12 个项目 · 按拍摄时间</div>
+            </div>
+            <div class="grid-controls">
+              <label class="search-field" for="searchInput">
+                <svg><use href="#i-search"/></svg>
+                <input id="searchInput" type="text" placeholder="筛选文件名" autocomplete="off" spellcheck="false">
+              </label>
+              <button class="sort-btn" id="sortBtn" title="切换排序">
+                <span id="sortLabel">拍摄时间 ↓</span>
+                <svg><use href="#i-chevron"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="grid" id="grid"></div>
+        </div>
+
+        <div class="filmstrip" id="filmstrip" aria-label="胶片栏"></div>
+      </section>
+
+      <aside class="inspector" id="inspector" aria-label="图片信息">
+        <div class="inspector-head">
+          <span class="title">信息</span>
+          <button class="close" id="closeInspector" aria-label="关闭信息面板">
+            <svg><use href="#i-x"/></svg>
+          </button>
+        </div>
+        <div class="inspector-body">
+          <section class="section">
+            <div class="section-title">文件</div>
+            <div class="row"><span class="label">文件名</span><span class="value strong" id="metaFile">IMG_4821.HEIC</span></div>
+            <div class="row"><span class="label">类型</span><span class="value">HEIC · 10-bit</span></div>
+            <div class="row"><span class="label">大小</span><span class="value" id="metaSize">4.8 MB</span></div>
+            <div class="row"><span class="label">修改时间</span><span class="value" id="metaDate">2026-10-18 07:42</span></div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">图像</div>
+            <div class="row"><span class="label">尺寸</span><span class="value" id="metaDims">4032 × 3024</span></div>
+            <div class="row"><span class="label">色彩空间</span><span class="value">Display P3</span></div>
+            <div class="row"><span class="label">方向</span><span class="value" id="metaOrientation">横向</span></div>
+            <div class="row"><span class="label">预加载</span><span class="value">下一张 · 已就绪</span></div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">拍摄</div>
+            <div class="row"><span class="label">相机</span><span class="value strong" id="metaCamera">Sony α7 IV</span></div>
+            <div class="row"><span class="label">镜头</span><span class="value">FE 35mm F1.8</span></div>
+            <div class="row"><span class="label">焦距</span><span class="value">35 mm</span></div>
+            <div class="row"><span class="label">光圈</span><span class="value">f/2.8</span></div>
+            <div class="row"><span class="label">快门</span><span class="value">1/250 s</span></div>
+            <div class="row"><span class="label">ISO</span><span class="value">100</span></div>
+          </section>
+
+          <section class="section">
+            <div class="section-title">位置</div>
+            <div class="map"><span class="pin"></span></div>
+            <div class="row"><span class="label">地点</span><span class="value" id="metaPlace">京都 · 二年坂</span></div>
+            <a class="map-link" href="#" onclick="return false">在地图中打开 <svg width="9" height="9" style="stroke:currentColor;fill:none;stroke-width:2"><use href="#i-external"/></svg></a>
+          </section>
+
+          <div class="actions">
+            <button class="action-btn" id="revealBtn">
+              <svg><use href="#i-folder"/></svg>在 Finder 中显示
+            </button>
+            <button class="action-btn" id="copyBtn">
+              <svg><use href="#i-copy"/></svg>复制图片
+            </button>
+            <button class="action-btn danger" id="trashBtn">
+              <svg><use href="#i-trash"/></svg>移到废纸篓
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="statusbar">
+      <div class="status-left">
+        <span id="statusLeft">第 1 张，共 12 张</span>
+        <span id="statusHint">4032 × 3024 · HEIC · 4.8 MB</span>
+      </div>
+      <div class="status-right">
+        <span class="local"><svg><use href="#i-lock"/></svg>本地文件夹 · 无网络访问</span>
+        <button class="help-btn" id="helpBtn" aria-label="键盘快捷键" title="键盘快捷键 (?)">?</button>
+      </div>
+    </footer>
+
+    <button class="focus-exit" id="focusExit">F 退出全屏</button>
+  </main>
+
+  <div class="toast" id="toast" role="status">
+    <span id="toastText">已移到废纸篓</span>
+    <button id="undoBtn">⌘Z 撤销</button>
+  </div>
+
+  <div class="overlay hidden" id="shortcuts" role="dialog" aria-modal="true" aria-label="键盘快捷键">
+    <div class="sheet">
+      <div class="sheet-head">
+        <div>
+          <div class="sheet-title">键盘快捷键</div>
+          <div class="sheet-sub">一只手看完一个文件夹。按 ? 随时打开。</div>
+        </div>
+        <button class="sheet-close" id="closeShortcuts" aria-label="关闭">
+          <svg><use href="#i-x"/></svg>
+        </button>
+      </div>
+      <div class="shortcut-cols">
+        <div>
+          <div class="shortcut-group">
+            <h4>浏览</h4>
+            <div class="shortcut-row"><span>上一张 / 下一张</span><span class="keys"><kbd>←</kbd><kbd>→</kbd></span></div>
+            <div class="shortcut-row"><span>下一张</span><span class="keys"><kbd>Space</kbd></span></div>
+            <div class="shortcut-row"><span>第一张 / 最后一张</span><span class="keys"><kbd>Home</kbd><kbd>End</kbd></span></div>
+            <div class="shortcut-row"><span>网格 / 查看</span><span class="keys"><kbd>G</kbd></span></div>
+            <div class="shortcut-row"><span>筛选当前文件夹</span><span class="keys"><kbd>⌘</kbd><kbd>F</kbd></span></div>
+          </div>
+          <div class="shortcut-group">
+            <h4>查看</h4>
+            <div class="shortcut-row"><span>适应窗口 / 100%</span><span class="keys"><kbd>Z</kbd></span></div>
+            <div class="shortcut-row"><span>100% / 适应</span><span class="keys"><kbd>1</kbd><kbd>0</kbd></span></div>
+            <div class="shortcut-row"><span>放大 / 缩小</span><span class="keys"><kbd>+</kbd><kbd>−</kbd></span></div>
+            <div class="shortcut-row"><span>全屏</span><span class="keys"><kbd>F</kbd></span></div>
+            <div class="shortcut-row"><span>信息面板</span><span class="keys"><kbd>I</kbd></span></div>
+          </div>
+        </div>
+        <div>
+          <div class="shortcut-group">
+            <h4>文件</h4>
+            <div class="shortcut-row"><span>移到废纸篓</span><span class="keys"><kbd>⌫</kbd></span></div>
+            <div class="shortcut-row"><span>撤销</span><span class="keys"><kbd>⌘</kbd><kbd>Z</kbd></span></div>
+            <div class="shortcut-row"><span>复制图片</span><span class="keys"><kbd>⌘</kbd><kbd>C</kbd></span></div>
+            <div class="shortcut-row"><span>在 Finder 中显示</span><span class="keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>R</kbd></span></div>
+            <div class="shortcut-row"><span>打开文件夹</span><span class="keys"><kbd>⌘</kbd><kbd>O</kbd></span></div>
+          </div>
+          <div class="shortcut-group">
+            <h4>界面</h4>
+            <div class="shortcut-row"><span>快捷键速查</span><span class="keys"><kbd>?</kbd></span></div>
+            <div class="shortcut-row"><span>关闭浮层 / 退出全屏</span><span class="keys"><kbd>Esc</kbd></span></div>
+            <div class="shortcut-row"><span>设置</span><span class="keys"><kbd>⌘</kbd><kbd>,</kbd></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-foot">
+        <span>提示：适应窗口时，双指左右轻扫即可翻页。</span>
+        <span>Mira 1.0 · 本地处理，不上传图片</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const photos = [
+    {src:'assets/kyoto-street.jpg', file:'IMG_4821.HEIC', title:'二年坂的清晨', size:'4.8 MB', bytes:4.8, dims:'4032 × 3024', orientation:'横向', date:'2026-10-18 07:42', place:'京都 · 二年坂', camera:'Sony α7 IV', sortDate:202610180742},
+    {src:'assets/temple.jpg', file:'IMG_4822.HEIC', title:'南禅寺的午后', size:'5.2 MB', bytes:5.2, dims:'4032 × 3024', orientation:'横向', date:'2026-10-18 13:16', place:'京都 · 南禅寺', camera:'Sony α7 IV', sortDate:202610181316},
+    {src:'assets/torii.jpg', file:'IMG_4830.HEIC', title:'千本鸟居', size:'4.1 MB', bytes:4.1, dims:'4032 × 3024', orientation:'横向', date:'2026-10-19 09:08', place:'京都 · 伏见稻荷', camera:'Sony α7 IV', sortDate:202610190908},
+    {src:'assets/japan-alley.jpg', file:'IMG_4837.HEIC', title:'先斗町的雨', size:'5.6 MB', bytes:5.6, dims:'4032 × 3024', orientation:'横向', date:'2026-10-19 18:33', place:'京都 · 先斗町', camera:'Sony α7 IV', sortDate:202610191833},
+    {src:'assets/tokyo.jpg', file:'IMG_4844.HEIC', title:'东京塔下', size:'6.3 MB', bytes:6.3, dims:'3024 × 4032', orientation:'竖向', date:'2026-10-20 17:51', place:'东京 · 芝公园', camera:'Sony α7 IV', sortDate:202610201751},
+    {src:'assets/portrait.jpg', file:'IMG_4851.HEIC', title:'午后的她', size:'5.9 MB', bytes:5.9, dims:'3024 × 4032', orientation:'竖向', date:'2026-10-20 15:24', place:'东京 · 代官山', camera:'Sony α7 IV', sortDate:202610201524},
+    {src:'assets/food.jpg', file:'IMG_4858.HEIC', title:'一汁一菜', size:'4.3 MB', bytes:4.3, dims:'4032 × 3024', orientation:'横向', date:'2026-10-21 12:06', place:'东京 · 中目黑', camera:'Sony α7 IV', sortDate:202610211206},
+    {src:'assets/coffee.jpg', file:'IMG_4862.HEIC', title:'手冲时间', size:'3.7 MB', bytes:3.7, dims:'4032 × 3024', orientation:'横向', date:'2026-10-21 15:40', place:'东京 · 清澄白河', camera:'Sony α7 IV', sortDate:202610211540},
+    {src:'assets/forest.jpg', file:'IMG_4870.HEIC', title:'苔藓与光', size:'6.8 MB', bytes:6.8, dims:'4032 × 3024', orientation:'横向', date:'2026-10-22 10:12', place:'长野 · 户隐', camera:'Sony α7 IV', sortDate:202610221012},
+    {src:'assets/lake.jpg', file:'IMG_4876.HEIC', title:'湖畔小屋', size:'5.4 MB', bytes:5.4, dims:'4032 × 3024', orientation:'横向', date:'2026-10-22 16:28', place:'长野 · 木崎湖', camera:'Sony α7 IV', sortDate:202610221628},
+    {src:'assets/mountain.jpg', file:'IMG_4881.HEIC', title:'北阿尔卑斯', size:'6.1 MB', bytes:6.1, dims:'4032 × 3024', orientation:'横向', date:'2026-10-23 08:05', place:'长野 · 白马', camera:'Sony α7 IV', sortDate:202610230805},
+    {src:'assets/snow.jpg', file:'IMG_4888.HEIC', title:'初雪', size:'5.0 MB', bytes:5.0, dims:'4032 × 3024', orientation:'横向', date:'2026-10-23 09:47', place:'长野 · 八方尾根', camera:'Sony α7 IV', sortDate:202610230947}
+  ];
+
+  const state = {
+    mode:'view',
+    index:0,
+    inspector:true,
+    zoom:0,           // 0 = fit, 1 = 100%, 2 = 200%
+    selected:0,
+    query:'',
+    sort:'date-desc',
+    deleted:new Set(),
+    focus:false
+  };
+
+  const $ = (s) => document.querySelector(s);
+  const els = {
+    app:$('#app'), desktop:$('#desktop'), gridBtn:$('#gridBtn'), openBtn:$('#openBtn'),
+    backBtn:$('#backBtn'), forwardBtn:$('#forwardBtn'), searchBtn:$('#searchBtn'),
+    zoomBtn:$('#zoomBtn'), zoomLabel:$('#zoomLabel'), inspectorBtn:$('#inspectorBtn'),
+    shareBtn:$('#shareBtn'), moreBtn:$('#moreBtn'), crumb:$('#crumb'), docName:$('#docName'),
+    docCount:$('#docCount'), viewMode:$('#viewMode'), gridMode:$('#gridMode'), canvas:$('#canvas'),
+    photoTransform:$('#photoTransform'), heroImage:$('#heroImage'), zoomBadge:$('#zoomBadge'),
+    filmstrip:$('#filmstrip'), inspector:$('#inspector'), closeInspector:$('#closeInspector'),
+    grid:$('#grid'), gridTitle:$('#gridTitle'), gridCount:$('#gridCount'), searchInput:$('#searchInput'),
+    sortBtn:$('#sortBtn'), sortLabel:$('#sortLabel'), statusLeft:$('#statusLeft'),
+    statusHint:$('#statusHint'), helpBtn:$('#helpBtn'), toast:$('#toast'), toastText:$('#toastText'),
+    undoBtn:$('#undoBtn'), shortcuts:$('#shortcuts'), closeShortcuts:$('#closeShortcuts'),
+    revealBtn:$('#revealBtn'), copyBtn:$('#copyBtn'), trashBtn:$('#trashBtn'), focusExit:$('#focusExit'),
+    metaFile:$('#metaFile'), metaSize:$('#metaSize'), metaDate:$('#metaDate'), metaDims:$('#metaDims'),
+    metaOrientation:$('#metaOrientation'), metaCamera:$('#metaCamera'), metaPlace:$('#metaPlace')
+  };
+
+  let pan = {x:0,y:0,startX:0,startY:0,dragging:false};
+  let toastTimer = null;
+  let undoItem = null;
+
+  function visiblePhotos(){
+    let list = photos.map((p,i)=>({...p, originalIndex:i})).filter(p=>!state.deleted.has(p.originalIndex));
+    if(state.query.trim()){
+      const q = state.query.trim().toLowerCase();
+      list = list.filter(p => (p.file+' '+p.title+' '+p.place).toLowerCase().includes(q));
+    }
+    if(state.sort === 'date-asc') list.sort((a,b)=>a.sortDate-b.sortDate);
+    else if(state.sort === 'name-asc') list.sort((a,b)=>a.file.localeCompare(b.file,'zh-Hans-CN',{numeric:true}));
+    else if(state.sort === 'size-desc') list.sort((a,b)=>b.bytes-a.bytes);
+    else list.sort((a,b)=>b.sortDate-a.sortDate);
+    return list;
+  }
+
+  function currentList(){
+    return visiblePhotos();
+  }
+
+  function currentPhoto(){
+    const list = currentList();
+    if(!list.length) return null;
+    const i = Math.max(0, Math.min(state.index, list.length-1));
+    return list[i];
+  }
+
+  function currentOrdinal(){
+    const list = currentList();
+    return list.length ? Math.min(state.index+1, list.length) : 0;
+  }
+
+  function setPhoto(index, keepZoom=false){
+    const list = currentList();
+    if(!list.length) return;
+    state.index = Math.max(0, Math.min(index, list.length-1));
+    state.selected = state.index;
+    if(!keepZoom) setZoom(0, false);
+    renderView();
+    renderFilmstrip();
+    renderStatus();
+    if(state.mode === 'grid') renderGrid(false);
+  }
+
+  function next(){ setPhoto(state.index + 1); }
+  function prev(){ setPhoto(state.index - 1); }
+
+  function renderView(){
+    const p = currentPhoto();
+    if(!p){
+      els.heroImage.removeAttribute('src');
+      els.heroImage.alt = '';
+      els.docName.textContent = '没有图片';
+      els.docCount.textContent = '0 / 0';
+      els.statusLeft.textContent = '0 个项目';
+      els.statusHint.textContent = '拖入一个文件夹开始';
+      return;
+    }
+    els.heroImage.src = p.src;
+    els.heroImage.alt = p.title;
+    els.heroImage.style.width = '';
+    els.heroImage.style.height = '';
+    els.heroImage.style.maxWidth = '';
+    els.heroImage.style.maxHeight = '';
+    els.docName.textContent = p.file;
+    els.docCount.textContent = `第 ${currentOrdinal()} 张，共 ${currentList().length} 张`;
+    els.crumb.innerHTML = `照片<span class="slash">/</span>2026 日本 · 秋<span class="slash">/</span>${p.title}`;
+    els.metaFile.textContent = p.file;
+    els.metaSize.textContent = p.size;
+    els.metaDate.textContent = p.date;
+    els.metaDims.textContent = p.dims;
+    els.metaOrientation.textContent = p.orientation;
+    els.metaCamera.textContent = p.camera;
+    els.metaPlace.textContent = p.place;
+    els.statusLeft.textContent = `第 ${currentOrdinal()} 张，共 ${currentList().length} 张`;
+    els.statusHint.textContent = `${p.dims} · HEIC · ${p.size}`;
+    applyZoom();
+    requestAnimationFrame(()=>{ els.heroImage.decode?.().catch(()=>{}); });
+  }
+
+  function renderFilmstrip(){
+    const list = currentList();
+    els.filmstrip.innerHTML = '';
+    list.forEach((p,i)=>{
+      const b = document.createElement('button');
+      b.className = 'thumb' + (i === state.index ? ' active' : '');
+      b.setAttribute('aria-label', `${p.file}，${p.title}`);
+      b.title = `${p.file} · ${p.title}`;
+      b.innerHTML = `<img src="${p.src}" alt="" draggable="false"><span class="thumb-index">${i+1}</span>`;
+      b.addEventListener('click', ()=>{ if(i===state.index) return; setPhoto(i); });
+      els.filmstrip.appendChild(b);
+    });
+    const active = els.filmstrip.querySelector('.thumb.active');
+    if(active) active.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+  }
+
+  function renderGrid(rebuild=true){
+    const list = currentList();
+    state.selected = Math.min(state.selected, Math.max(0,list.length-1));
+    els.gridTitle.textContent = '2026 日本 · 秋';
+    els.gridCount.textContent = `${list.length} 个项目 · ${sortText()}`;
+    if(!rebuild) {
+      [...els.grid.querySelectorAll('.card')].forEach((c,i)=>{
+        c.classList.toggle('selected', i === state.selected);
+      });
+      return;
+    }
+    els.grid.innerHTML = '';
+    if(!list.length){
+      els.grid.innerHTML = `<div class="empty-grid"><strong>没有匹配的图片</strong><span>换个关键词，或清空筛选。</span></div>`;
+      return;
+    }
+    list.forEach((p,i)=>{
+      const card = document.createElement('button');
+      card.className = 'card' + (i === state.selected ? ' selected' : '');
+      card.setAttribute('aria-label', `${p.file}，${p.title}`);
+      card.innerHTML = `
+        <div class="card-img">
+          <img src="${p.src}" alt="${p.title}" draggable="false" loading="lazy">
+          <span class="select-dot"><svg><use href="#i-check"/></svg></span>
+          <span class="card-overlay-title">${p.title}</span>
+        </div>
+        <div class="card-meta"><span class="card-name">${p.file}</span><span class="card-size">${p.size}</span></div>`;
+      card.addEventListener('click', ()=>{ state.selected = i; state.index = i; renderGrid(false); renderStatus(); });
+      card.addEventListener('dblclick', ()=>leaveGrid(i));
+      card.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){ e.preventDefault(); leaveGrid(i); }
+      });
+      els.grid.appendChild(card);
+    });
+  }
+
+  function sortText(){
+    switch(state.sort){
+      case 'date-asc': return '拍摄时间 ↑';
+      case 'name-asc': return '文件名 A–Z';
+      case 'size-desc': return '文件大小 ↓';
+      default: return '拍摄时间 ↓';
+    }
+  }
+
+  function renderStatus(){
+    const list = currentList();
+    if(state.mode === 'grid'){
+      els.statusLeft.textContent = list.length ? `${list.length} 个项目 · 已选择 ${state.selected+1} 个` : '0 个项目';
+      els.statusHint.textContent = list.length ? '双击打开 · ⌘ 点击多选' : '换一个关键词试试';
+    } else {
+      const p = currentPhoto();
+      if(p){
+        els.statusLeft.textContent = `第 ${currentOrdinal()} 张，共 ${list.length} 张`;
+        els.statusHint.textContent = `${p.dims} · HEIC · ${p.size}`;
+      }
+    }
+  }
+
+  function render(){
+    const isGrid = state.mode === 'grid';
+    els.viewMode.classList.toggle('hidden', isGrid);
+    els.gridMode.classList.toggle('hidden', !isGrid);
+    els.filmstrip.classList.toggle('hidden', isGrid);
+    els.gridBtn.classList.toggle('active', isGrid);
+    els.inspector.classList.toggle('hidden', !state.inspector);
+    els.inspectorBtn.classList.toggle('active', state.inspector);
+    els.docName.parentElement.classList.toggle('hidden', isGrid);
+    els.crumb.classList.toggle('hidden', isGrid);
+    if(isGrid){
+      if(state.selected >= currentList().length) state.selected = Math.max(0,currentList().length-1);
+      renderGrid(true);
+      renderStatus();
+    } else {
+      renderView();
+      renderFilmstrip();
+      renderStatus();
+    }
+    els.app.classList.toggle('focus', state.focus);
+    els.focusExit.classList.toggle('hidden', !state.focus);
+  }
+
+  function toggleGrid(){
+    if(state.mode === 'view'){
+      state.inspectorBeforeGrid = state.inspector;
+      state.inspector = false;
+      state.mode = 'grid';
+    } else {
+      leaveGrid();
+      return;
+    }
+    state.index = Math.min(state.index, Math.max(0,currentList().length-1));
+    state.selected = state.index;
+    render();
+  }
+
+  function leaveGrid(index){
+    state.mode = 'view';
+    state.inspector = state.inspectorBeforeGrid !== false;
+    if(index !== undefined) state.index = index;
+    state.index = Math.min(state.index, Math.max(0,currentList().length-1));
+    state.selected = state.index;
+    render();
+  }
+
+  function toggleInspector(force){
+    state.inspector = force !== undefined ? force : !state.inspector;
+    els.inspector.classList.toggle('hidden', !state.inspector);
+    els.inspectorBtn.classList.toggle('active', state.inspector);
+  }
+
+  function setZoom(level, announce=true){
+    state.zoom = level;
+    applyZoom(announce);
+  }
+
+  function applyZoom(announce=true){
+    const img = els.heroImage;
+    const wrap = els.photoTransform;
+    if(!img.src) return;
+    if(state.zoom === 0){
+      img.style.maxWidth = '';
+      img.style.maxHeight = '';
+      img.style.width = '';
+      img.style.height = '';
+      wrap.style.transform = 'translate(0,0) scale(1)';
+      els.zoomLabel.textContent = '适合窗口';
+      els.zoomBadge.classList.remove('show');
+      return;
+    }
+    const scale = state.zoom === 1 ? 1 : 2;
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    if(img.naturalWidth){
+      img.style.width = img.naturalWidth + 'px';
+      img.style.height = img.naturalHeight + 'px';
+    }
+    wrap.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${scale})`;
+    els.zoomLabel.textContent = state.zoom === 1 ? '100%' : '200%';
+    if(announce){
+      els.zoomBadge.textContent = state.zoom === 1 ? '100% · 实际像素' : '200%';
+      els.zoomBadge.classList.add('show');
+      clearTimeout(els.zoomBadge._t);
+      els.zoomBadge._t = setTimeout(()=>els.zoomBadge.classList.remove('show'), 1100);
+    }
+  }
+
+  function cycleZoom(){
+    if(state.mode === 'grid') return;
+    pan = {x:0,y:0,startX:0,startY:0,dragging:false};
+    setZoom((state.zoom + 1) % 3);
+  }
+
+  function fitZoom(){
+    pan = {x:0,y:0,startX:0,startY:0,dragging:false};
+    setZoom(0);
+  }
+
+  function showToast(text, undoable=false, undoFn=null){
+    els.toastText.textContent = text;
+    els.undoBtn.style.display = undoable ? '' : 'none';
+    if(undoFn) els.undoBtn.onclick = undoFn;
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>els.toast.classList.remove('show'), 4200);
+  }
+
+  function deleteCurrent(){
+    if(!state.mode || !currentList().length) return;
+    const list = currentList();
+    const p = list[state.index];
+    if(!p) return;
+    const removed = {photo:p, index:state.index};
+    state.deleted.add(p.originalIndex);
+    undoItem = removed;
+    showToast('已移到废纸篓', true, undoDelete);
+    if(state.index >= currentList().length) state.index = Math.max(0, currentList().length-1);
+    state.selected = state.index;
+    render();
+  }
+
+  function undoDelete(){
+    if(!undoItem) return;
+    state.deleted.delete(undoItem.photo.originalIndex);
+    state.index = Math.min(undoItem.index, currentList().length-1);
+    state.selected = state.index;
+    undoItem = null;
+    render();
+    showToast('已撤销');
+  }
+
+  function openFolder(){
+    showToast('这是设计原型：拖入文件夹即可浏览');
+  }
+
+  function copyImage(){
+    showToast('已复制图片到剪贴板');
+  }
+
+  function reveal(){
+    showToast('已在 Finder 中显示');
+  }
+
+  function cycleSort(){
+    const modes = ['date-desc','date-asc','name-asc','size-desc'];
+    state.sort = modes[(modes.indexOf(state.sort)+1) % modes.length];
+    els.sortLabel.textContent = sortText();
+    state.index = 0;
+    state.selected = 0;
+    render();
+  }
+
+  function focusSearch(){
+    if(state.mode !== 'grid'){ state.mode = 'grid'; render(); }
+    setTimeout(()=>{ els.searchInput.focus(); els.searchInput.select(); }, 30);
+  }
+
+  function toggleFocus(){
+    state.focus = !state.focus;
+    els.app.classList.toggle('focus', state.focus);
+    els.focusExit.classList.toggle('hidden', !state.focus);
+    if(state.focus) els.desktop.classList.add('focus-desktop');
+    else els.desktop.classList.remove('focus-desktop');
+  }
+
+  function toggleShortcuts(show){
+    const next = show !== undefined ? show : els.shortcuts.classList.contains('hidden');
+    els.shortcuts.classList.toggle('hidden', !next);
+  }
+
+  // ---- events ----
+  els.gridBtn.addEventListener('click', toggleGrid);
+  els.openBtn.addEventListener('click', openFolder);
+  els.backBtn.addEventListener('click', ()=>showToast('已经是第一组'));
+  els.forwardBtn.addEventListener('click', ()=>showToast('没有更新的历史记录'));
+  els.searchBtn.addEventListener('click', focusSearch);
+  els.zoomBtn.addEventListener('click', cycleZoom);
+  els.inspectorBtn.addEventListener('click', ()=>toggleInspector());
+  els.closeInspector.addEventListener('click', ()=>toggleInspector(false));
+  els.shareBtn.addEventListener('click', ()=>showToast('分享菜单已准备'));
+  els.moreBtn.addEventListener('click', ()=>showToast('更多操作：重命名、移动、设为壁纸'));
+  els.helpBtn.addEventListener('click', ()=>toggleShortcuts(true));
+  els.closeShortcuts.addEventListener('click', ()=>toggleShortcuts(false));
+  els.shortcuts.addEventListener('click', (e)=>{ if(e.target === els.shortcuts) toggleShortcuts(false); });
+  els.trashBtn.addEventListener('click', deleteCurrent);
+  els.copyBtn.addEventListener('click', copyImage);
+  els.revealBtn.addEventListener('click', reveal);
+  els.sortBtn.addEventListener('click', cycleSort);
+  els.focusExit.addEventListener('click', toggleFocus);
+  els.searchInput.addEventListener('input', (e)=>{
+    state.query = e.target.value;
+    state.index = 0;
+    state.selected = 0;
+    renderGrid(true);
+    renderStatus();
+  });
+  els.heroImage.addEventListener('dblclick', ()=>{
+    if(state.zoom === 0) setZoom(1); else fitZoom();
+  });
+
+  // drag to pan when zoomed
+  els.canvas.addEventListener('pointerdown', (e)=>{
+    if(state.zoom === 0) return;
+    pan.dragging = true;
+    pan.startX = e.clientX - pan.x;
+    pan.startY = e.clientY - pan.y;
+    els.photoTransform.classList.add('dragging');
+    els.canvas.setPointerCapture?.(e.pointerId);
+  });
+  els.canvas.addEventListener('pointermove', (e)=>{
+    if(!pan.dragging) return;
+    pan.x = e.clientX - pan.startX;
+    pan.y = e.clientY - pan.startY;
+    applyZoom(false);
+  });
+  els.canvas.addEventListener('pointerup', ()=>{
+    pan.dragging = false;
+    els.photoTransform.classList.remove('dragging');
+  });
+  els.canvas.addEventListener('pointercancel', ()=>{
+    pan.dragging = false;
+    els.photoTransform.classList.remove('dragging');
+  });
+
+  // keyboard
+  document.addEventListener('keydown', (e)=>{
+    const tag = (e.target.tagName || '').toLowerCase();
+    if(tag === 'input' || tag === 'textarea') {
+      if(e.key === 'Escape'){ e.target.blur(); toggleShortcuts(false); }
+      return;
+    }
+    if(e.metaKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); undoDelete(); return; }
+    if(e.metaKey && e.key.toLowerCase() === 'f'){ e.preventDefault(); focusSearch(); return; }
+    if(e.metaKey && e.key.toLowerCase() === 'i'){ e.preventDefault(); toggleInspector(); return; }
+    if(e.metaKey && e.key === ','){ e.preventDefault(); showToast('设置面板：外观、缓存、默认应用'); return; }
+    if(e.key === '?'){ e.preventDefault(); toggleShortcuts(); return; }
+    if(e.key === 'Escape'){
+      e.preventDefault();
+      if(!els.shortcuts.classList.contains('hidden')) toggleShortcuts(false);
+      else if(state.focus) toggleFocus();
+      else if(state.mode === 'grid'){ leaveGrid(); }
+      return;
+    }
+    if(e.key.toLowerCase() === 'g'){ e.preventDefault(); toggleGrid(); return; }
+    if(e.key.toLowerCase() === 'i'){ e.preventDefault(); toggleInspector(); return; }
+    if(e.key.toLowerCase() === 'f'){ e.preventDefault(); toggleFocus(); return; }
+    if(e.key.toLowerCase() === 'z'){ e.preventDefault(); cycleZoom(); return; }
+    if(e.key === '0'){ e.preventDefault(); fitZoom(); return; }
+    if(e.key === '1'){ e.preventDefault(); pan={x:0,y:0,startX:0,startY:0,dragging:false}; setZoom(1); return; }
+    if(e.key === '+' || e.key === '='){ e.preventDefault(); if(state.zoom < 2) setZoom(state.zoom+1); return; }
+    if(e.key === '-'){ e.preventDefault(); if(state.zoom > 0) setZoom(state.zoom-1); return; }
+    if(e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); deleteCurrent(); return; }
+
+    if(state.mode === 'grid'){
+      const list = currentList();
+      if(!list.length) return;
+      const cols = getComputedStyle(els.grid).gridTemplateColumns.split(' ').filter(Boolean).length || 1;
+      if(e.key === 'ArrowRight'){ e.preventDefault(); state.selected = Math.min(list.length-1, state.selected+1); state.index = state.selected; renderGrid(false); renderStatus(); }
+      else if(e.key === 'ArrowLeft'){ e.preventDefault(); state.selected = Math.max(0, state.selected-1); state.index = state.selected; renderGrid(false); renderStatus(); }
+      else if(e.key === 'ArrowDown'){ e.preventDefault(); state.selected = Math.min(list.length-1, state.selected+cols); state.index = state.selected; renderGrid(false); renderStatus(); }
+      else if(e.key === 'ArrowUp'){ e.preventDefault(); state.selected = Math.max(0, state.selected-cols); state.index = state.selected; renderGrid(false); renderStatus(); }
+      else if(e.key === 'Enter'){ e.preventDefault(); leaveGrid(state.selected); }
+      return;
+    }
+
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' '){ e.preventDefault(); next(); }
+    else if(e.key === 'ArrowLeft' || e.key === 'ArrowUp'){ e.preventDefault(); prev(); }
+    else if(e.key === 'Home'){ e.preventDefault(); setPhoto(0); }
+    else if(e.key === 'End'){ e.preventDefault(); setPhoto(currentList().length-1); }
+    else if(e.key === 'Enter'){ e.preventDefault(); state.mode='grid'; state.selected=state.index; render(); }
+  });
+
+  // init
+  render();
+</script>
+</body>
+</html>

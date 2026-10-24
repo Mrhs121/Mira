@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager & Build Artifacts
+app/.build/
+app/.swiftpm/
+app/build/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# Large Synthetic Benchmark Images (80MB+)
+app/testdata/*.jpg
+app/testdata/*.png
