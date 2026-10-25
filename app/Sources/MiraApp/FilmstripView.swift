@@ -17,7 +17,7 @@ final class FilmstripScrollView: NSScrollView {
         guard maxX > 0 else { return }
 
         let step: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 12
-        let x = min(max(0, contentView.bounds.origin.x + deltaY * step), maxX)
+        let x = min(max(0, contentView.bounds.origin.x - deltaY * step), maxX)
         contentView.scroll(to: NSPoint(x: x, y: contentView.bounds.origin.y))
         reflectScrolledClipView(contentView)
     }
