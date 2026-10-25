@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <a href="README.en.md">English</a> · 简体中文
+</p>
+
+<p align="center">
   <a href="https://github.com/Mrhs121/Mira/actions/workflows/build.yml"><img src="https://github.com/Mrhs121/Mira/actions/workflows/build.yml/badge.svg" alt="Build status" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/macOS-14%2B%20arm64-black" alt="macOS 14+ arm64" />
@@ -123,6 +127,7 @@ ditto build/Mira.app /Applications/Mira.app
 ```text
 Mira/
 ├── README.md
+├── README.en.md
 ├── LICENSE
 ├── app/
 │   ├── README.md              # 更细的开发与使用说明
