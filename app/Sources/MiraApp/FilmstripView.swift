@@ -1,8 +1,44 @@
 import AppKit
 import MiraCore
 
+final class FilmstripScrollView: NSScrollView {
+    override func scrollWheel(with event: NSEvent) {
+        // The filmstrip has no meaningful vertical content. Make an ordinary
+        // mouse wheel scroll it horizontally instead of doing nothing.
+        let deltaY = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : event.deltaY
+        guard abs(deltaY) >= abs(event.scrollingDeltaX),
+              deltaY != 0,
+              let documentView else {
+            super.scrollWheel(with: event)
+            return
+        }
+
+        let maxX = max(0, documentView.bounds.width - contentView.bounds.width)
+        guard maxX > 0 else { return }
+
+        let step: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 12
+        let x = min(max(0, contentView.bounds.origin.x + deltaY * step), maxX)
+        contentView.scroll(to: NSPoint(x: x, y: contentView.bounds.origin.y))
+        reflectScrolledClipView(contentView)
+    }
+}
+
 final class FilmstripCollectionView: NSCollectionView {
     var onContextMenu: ((IndexPath) -> NSMenu?)?
+
+    override func scrollWheel(with event: NSEvent) {
+        if let scrollView = enclosingScrollView {
+            scrollView.scrollWheel(with: event)
+        } else {
+            super.scrollWheel(with: event)
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        // When dragging near or past the edge, keep the strip moving.
+        enclosingScrollView?.autoscroll(with: event)
+        super.mouseDragged(with: event)
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let point = convert(event.locationInWindow, from: nil)
@@ -16,6 +52,7 @@ final class FilmstripCollectionView: NSCollectionView {
 final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewDelegate {
     private var items: [ImageItem] = []
     private var collectionView: FilmstripCollectionView!
+    private var filmScrollView: FilmstripScrollView!
     private var suppressCallback = false
 
     var onSelect: ((Int) -> Void)?
@@ -61,13 +98,17 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
             self?.onContextMenu?(indexPath.item)
         }
 
-        let scrollView = NSScrollView()
+        let scrollView = FilmstripScrollView()
         scrollView.documentView = collectionView
         scrollView.hasHorizontalScroller = false
         scrollView.hasVerticalScroller = false
+        scrollView.autohidesScrollers = false
+        scrollView.scrollerStyle = .overlay
+        scrollView.horizontalScrollElasticity = .allowed
         scrollView.drawsBackground = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
+        filmScrollView = scrollView
 
         NSLayoutConstraint.activate([
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -87,6 +128,22 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
         collectionView.reloadData()
         if let selectedIndex, items.indices.contains(selectedIndex) {
             select(index: selectedIndex, scroll: true)
+        }
+        DispatchQueue.main.async { [weak self] in self?.updateScrollerVisibility() }
+    }
+
+    override func layout() {
+        super.layout()
+        updateScrollerVisibility()
+    }
+
+    private func updateScrollerVisibility() {
+        guard let filmScrollView else { return }
+        let contentWidth = collectionView.collectionViewLayout?.collectionViewContentSize.width ?? 0
+        let viewportWidth = filmScrollView.contentView.bounds.width
+        let needsScroller = contentWidth > viewportWidth + 1
+        if filmScrollView.hasHorizontalScroller != needsScroller {
+            filmScrollView.hasHorizontalScroller = needsScroller
         }
     }
 
