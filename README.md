@@ -157,6 +157,19 @@ cd app
 
 欢迎提 issue 和 PR；如果是比较大的改动，先开 issue 聊一下方向，避免白做。
 
+## 发布
+
+`main` 分支的每次 push 只跑构建并上传 Actions artifact，不会改动 Release。
+
+要发正式版本，先改 `app/Resources/Info.plist` 里的版本号，再打 tag：
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+只有 `v*` tag 会创建对应的 GitHub Release。
+
 ## License
 
 [MIT](LICENSE)
