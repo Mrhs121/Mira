@@ -33,6 +33,7 @@ Mira currently supports Apple Silicon and macOS 14 or later.
 ### Browsing
 
 - Opening an image automatically picks up the other images in the same folder; use `←` / `→` / `Space` to move through them.
+- Animated GIFs play and loop automatically; the grid and filmstrip show the first frame.
 - `G` switches between the grid and the large view; `F` goes full screen; `S` starts a slideshow.
 - Scroll the wheel or pinch on a trackpad to zoom around the pointer.
 - Drag inside the image to pan; double-click to toggle between fit-to-window and 100%.

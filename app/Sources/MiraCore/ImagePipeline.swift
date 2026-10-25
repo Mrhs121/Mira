@@ -2,6 +2,21 @@ import Foundation
 import ImageIO
 import CoreGraphics
 
+
+/// Decoded frames and timing for an animated GIF.
+public struct GIFAnimation: @unchecked Sendable {
+    public let frames: [CGImage]
+    public let frameDurations: [TimeInterval]
+    /// 0 means loop forever. 1 means play through once.
+    public let loopCount: Int
+
+    public init(frames: [CGImage], frameDurations: [TimeInterval], loopCount: Int) {
+        self.frames = frames
+        self.frameDurations = frameDurations
+        self.loopCount = loopCount
+    }
+}
+
 private final class CGImageBox {
     let image: CGImage
     init(_ image: CGImage) { self.image = image }
@@ -76,6 +91,54 @@ public final class ImagePipeline: @unchecked Sendable {
         let cost = max(1, image.bytesPerRow * image.height)
         cache.setObject(CGImageBox(image), forKey: key, cost: cost)
         return image
+    }
+
+
+    /// Decodes every frame of an animated GIF at a display-friendly size.
+    /// Returns nil for static GIFs or when the file cannot be decoded.
+    public func gifAnimation(for url: URL, maxPixel: Int) -> GIFAnimation? {
+        guard url.pathExtension.lowercased() == "gif",
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
+            return nil
+        }
+
+        let count = CGImageSourceGetCount(source)
+        guard count > 1 else { return nil }
+
+        var frames: [CGImage] = []
+        var durations: [TimeInterval] = []
+        frames.reserveCapacity(count)
+        durations.reserveCapacity(count)
+
+        let target = max(64, maxPixel)
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: target,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+
+        for index in 0..<count {
+            guard let frame = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
+                continue
+            }
+            frames.append(frame)
+
+            let properties = (CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]) ?? [:]
+            let gif = (properties[kCGImagePropertyGIFDictionary] as? [CFString: Any]) ?? [:]
+            let unclamped = (gif[kCGImagePropertyGIFUnclampedDelayTime] as? NSNumber)?.doubleValue
+            let clamped = (gif[kCGImagePropertyGIFDelayTime] as? NSNumber)?.doubleValue
+            let rawDelay = unclamped ?? clamped ?? 0.1
+            durations.append(rawDelay < 0.02 ? 0.1 : rawDelay)
+        }
+
+        guard frames.count > 1 else { return nil }
+
+        let sourceProperties = (CGImageSourceCopyProperties(source, nil) as? [CFString: Any]) ?? [:]
+        let sourceGIF = (sourceProperties[kCGImagePropertyGIFDictionary] as? [CFString: Any]) ?? [:]
+        let loopCount = max(0, (sourceGIF[kCGImagePropertyGIFLoopCount] as? NSNumber)?.intValue ?? 0)
+
+        return GIFAnimation(frames: frames, frameDurations: durations, loopCount: loopCount)
     }
 
     /// Returns only the embedded preview, without decoding the full image.

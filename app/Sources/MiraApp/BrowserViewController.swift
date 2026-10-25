@@ -430,16 +430,22 @@ final class BrowserViewController: NSViewController {
             canvasWidth = max(canvas.bounds.width, 900)
         }
         let target = max(1400, min(3000, Int(canvasWidth * scale * 1.15)))
+        let isGIF = item.url.pathExtension.lowercased() == "gif"
 
         if mode == .view {
-            if let cachedFit = pipeline.cachedImage(for: item.url, maxPixel: target, allowEmbedded: false) {
+            if isGIF {
+                if let preview = [420, 160].compactMap({ pipeline.cachedImage(for: item.url, maxPixel: $0, allowEmbedded: true) }).first {
+                    canvas.display(image: preview)
+                } else {
+                    canvas.showPlaceholder(pixelSize: metadata?.pixelSize)
+                }
+            } else if let cachedFit = pipeline.cachedImage(for: item.url, maxPixel: target, allowEmbedded: false) {
                 miraLog("cache hit \(item.fileName) @\(target)")
                 canvas.display(image: cachedFit)
                 updateStatus()
                 prefetchNeighbors(target: target)
                 return
-            }
-            if let preview = [420, 160].compactMap({ pipeline.cachedImage(for: item.url, maxPixel: $0, allowEmbedded: true) }).first {
+            } else if let preview = [420, 160].compactMap({ pipeline.cachedImage(for: item.url, maxPixel: $0, allowEmbedded: true) }).first {
                 canvas.display(image: preview)
             } else {
                 canvas.showPlaceholder(pixelSize: metadata?.pixelSize)
@@ -450,6 +456,32 @@ final class BrowserViewController: NSViewController {
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
+
+            if isGIF {
+                let animation = self.pipeline.gifAnimation(for: item.url, maxPixel: target)
+                let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
+                miraLog(String(format: "gif %@ target=%d in %.1fms (%d frames)", item.fileName, target, elapsed, animation?.frames.count ?? 0))
+                DispatchQueue.main.async {
+                    guard self.loadToken == token, self.currentIndex == index else { return }
+                    if let animation, self.mode == .view {
+                        self.canvas.display(animation: animation)
+                        self.updateStatus()
+                        self.prefetchNeighbors(target: target)
+                        return
+                    }
+                    guard let image = self.pipeline.image(for: item.url, maxPixel: target, allowEmbedded: false) else {
+                        self.toast.show("这张图无法解码")
+                        return
+                    }
+                    if self.mode == .view {
+                        self.canvas.display(image: image)
+                    }
+                    self.updateStatus()
+                    self.prefetchNeighbors(target: target)
+                }
+                return
+            }
+
             let image = self.pipeline.image(for: item.url, maxPixel: target, allowEmbedded: false)
             let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
             miraLog(String(format: "decode %@ target=%d in %.1fms (%@)", item.fileName, target, elapsed, image.map { "\($0.width)x\($0.height)" } ?? "nil"))
@@ -471,6 +503,7 @@ final class BrowserViewController: NSViewController {
     private func loadDetail() {
         guard items.indices.contains(currentIndex), mode == .view else { return }
         let item = items[currentIndex]
+        guard item.url.pathExtension.lowercased() != "gif" else { return }
         if let metadata = pipeline.metadata(for: item.url),
            max(metadata.pixelWidth, metadata.pixelHeight) <= 2000 {
             return
@@ -499,7 +532,7 @@ final class BrowserViewController: NSViewController {
         guard !urls.isEmpty else { return }
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.45) { [weak self] in
             guard let self else { return }
-            for url in urls {
+            for url in urls where url.pathExtension.lowercased() != "gif" {
                 _ = self.pipeline.image(for: url, maxPixel: target, allowEmbedded: false)
             }
         }
@@ -543,6 +576,7 @@ final class BrowserViewController: NSViewController {
             inspectorWidth.constant = 0
             topBar.setGridActive(true)
             topBar.setInspectorActive(false)
+            canvas.stopAnimation()
             gridVC.reload(items: items, selectedIndex: currentIndex)
             gridVC.focus()
             updateStatus()

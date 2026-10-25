@@ -1,4 +1,5 @@
 import AppKit
+import MiraCore
 import QuartzCore
 
 final class ImageCanvasView: NSView {
@@ -26,6 +27,13 @@ final class ImageCanvasView: NSView {
     private var didRequestDetail = false
     private var dragging = false
     private var lastDragPoint: CGPoint?
+
+    private var animationFrames: [CGImage] = []
+    private var animationDurations: [TimeInterval] = []
+    private var animationFrameIndex = 0
+    private var animationLoopCount = 0
+    private var animationLoopsCompleted = 0
+    private var animationTimer: Timer?
 
     var onZoomChanged: ((CGFloat) -> Void)?
     var onNeedsDetail: (() -> Void)?
@@ -98,6 +106,7 @@ final class ImageCanvasView: NSView {
     }
 
     func showPlaceholder(pixelSize: CGSize?) {
+        stopAnimation()
         image = nil
         hasDetail = false
         didRequestDetail = false
@@ -113,6 +122,7 @@ final class ImageCanvasView: NSView {
     }
 
     func display(image: CGImage, resetView: Bool = true) {
+        stopAnimation()
         self.image = image
         imagePixelSize = CGSize(width: image.width, height: image.height)
         imageLayer.contents = image
@@ -130,13 +140,92 @@ final class ImageCanvasView: NSView {
         }
     }
 
+    func display(animation: GIFAnimation, resetView: Bool = true) {
+        stopAnimation()
+        guard !animation.frames.isEmpty else { return }
+
+        animationFrames = animation.frames
+        animationDurations = animation.frameDurations
+        animationLoopCount = animation.loopCount
+        animationFrameIndex = 0
+        animationLoopsCompleted = 0
+
+        showAnimationFrame(at: 0, resetView: resetView)
+        scheduleNextAnimationFrame()
+    }
+
+    func stopAnimation() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        animationFrames.removeAll()
+        animationDurations.removeAll()
+        animationFrameIndex = 0
+        animationLoopsCompleted = 0
+    }
+
+    private func showAnimationFrame(at index: Int, resetView: Bool) {
+        guard animationFrames.indices.contains(index) else { return }
+        let frame = animationFrames[index]
+        image = frame
+        imagePixelSize = CGSize(width: frame.width, height: frame.height)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        imageLayer.contents = frame
+        imageLayer.isHidden = false
+        CATransaction.commit()
+        placeholderLabel.isHidden = true
+        spinner.stopAnimation(nil)
+
+        if resetView {
+            fit(animated: false)
+        } else {
+            fitScale = computeFitScale()
+            applyTransform()
+        }
+    }
+
+    private func scheduleNextAnimationFrame() {
+        animationTimer?.invalidate()
+        guard !animationFrames.isEmpty else { return }
+        let index = min(animationFrameIndex, max(0, animationDurations.count - 1))
+        let delay = max(0.02, animationDurations.isEmpty ? 0.1 : animationDurations[index])
+
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            self?.advanceAnimationFrame()
+        }
+        timer.tolerance = min(0.01, delay * 0.15)
+        RunLoop.main.add(timer, forMode: .common)
+        animationTimer = timer
+    }
+
+    private func advanceAnimationFrame() {
+        guard !animationFrames.isEmpty else { return }
+        let next = animationFrameIndex + 1
+        if next < animationFrames.count {
+            animationFrameIndex = next
+            showAnimationFrame(at: next, resetView: false)
+            scheduleNextAnimationFrame()
+            return
+        }
+
+        if animationLoopCount == 0 || animationLoopsCompleted + 1 < animationLoopCount {
+            animationLoopsCompleted += 1
+            animationFrameIndex = 0
+            showAnimationFrame(at: 0, resetView: false)
+            scheduleNextAnimationFrame()
+        } else {
+            stopAnimation()
+        }
+    }
+
     func displayDetail(_ detail: CGImage) {
-        guard image != nil else { return }
+        guard image != nil, animationFrames.isEmpty else { return }
         imageLayer.contents = detail
         hasDetail = true
     }
 
     func clear() {
+        stopAnimation()
         image = nil
         imageLayer.contents = nil
         imageLayer.isHidden = true
